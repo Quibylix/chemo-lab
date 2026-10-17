@@ -11,30 +11,41 @@ cell walls) directly from a molecule's SMILES string.
 
 ## How it works
 
-1. **Data** — Loads the `Caco2_Wang` dataset from
+1. **Data** — Loads the `Caco2_Wang` dataset (910 molecules) from
    [PyTDC](https://tdcommons.ai/) (`single_pred/ADME`) and performs a
    **scaffold split** (train/valid/test) so that structurally related molecules
    stay in the same split.
-2. **Features** — Each molecule is converted into a feature vector:
-   - a 512-bit **Morgan count fingerprint** (radius 2, via RDKit)
-   - engineered molecular descriptors: exact molecular weight, H-bond donors,
-     H-bond acceptors, and topological polar surface area (TPSA) — each scaled.
-3. **Model** — A small MLP written **from scratch with raw PyTorch tensors**
-   (no `nn.Module`, no autograd config, no optimizers): manual forward pass,
-   manual gradient step, MAE loss, weight decay, and a decaying learning rate.
-4. **Evaluation** — Tracks training and validation MAE per epoch, keeps the
-   best-validated weights, and finally reports test MAE against a
-   **median baseline**. Matplotlib plots the error curves.
+2. **Features** — Each molecule is converted into a 516-dimensional feature
+   vector:
+   - a 512-bin **Morgan count fingerprint** (radius 2, chirality-aware, via
+     RDKit)
+   - engineered molecular descriptors, each scaled by hand: exact molecular
+     weight / 500, H-bond donors / 5, H-bond acceptors / 10, and topological
+     polar surface area / 200.
+3. **Model** — A small MLP (`nn.Module`: 516 → 100 → 25 → 1 with ReLU) trained
+   with mini-batches (`DataLoader`), MAE loss (`nn.L1Loss`), **SGD with weight
+   decay**, and an exponentially decaying learning rate (`ExponentialLR`).
+4. **Evaluation** — Tracks validation MAE per epoch, keeps the best-validated
+   weights, and finally reports train/validation/test MAE against a
+   **median baseline**. Matplotlib plots the validation error curve.
 
-## Screenshot of the result
+## Latest results
+
+Baseline (predicting the median) test MAE: **0.632**
+
+| metric               | MAE       |
+| -------------------- | --------- |
+| final training error | 0.136     |
+| min validation error | 0.384     |
+| final test error     | **0.352** |
 
 ### Error over epochs
 
-![Error over epochs](screenshots/error_first_iteration.png)
+![Error over epochs](screenshots/error_second_iteration.png)
 
 ### Results
 
-![Results](screenshots/results_first_iteration.png)
+![Results](screenshots/results_second_iteration.png)
 
 ## Running it
 
@@ -50,7 +61,7 @@ otherwise it falls back to CPU.
 
 ## Tech stack
 
-- [PyTorch](https://pytorch.org/) — tensors, autograd for the manual backward passes
+- [PyTorch](https://pytorch.org/) — `nn.Module` MLP, autograd, optim, `DataLoader`
 - [RDKit](https://www.rdkit.org/) — cheminformatics (SMILES parsing, fingerprints, descriptors)
 - [PyTDC](https://tdcommons.ai/) — dataset loading and splitting
 - [matplotlib](https://matplotlib.org/) — error plots
@@ -59,5 +70,5 @@ otherwise it falls back to CPU.
 ## What I want to explore next
 
 - [ ] Compare against CatBoost/LightGBM on the same features
+- [ ] Understand regression trees by implementing one from scratch
 - [ ] Different fingerprint types and sizes
-- [ ] Better hyperparameters / architectures
